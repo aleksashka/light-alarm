@@ -10,9 +10,9 @@ void setup() {
 }
 
 void loop() {
-  fadeInWhite(6000);//Fade in for 25:36
-  colorFlash(264, pixels.Color(255,255,255),500,500);//Flash for 4:24
-  delay(84600000);//Wait for 23:30:00
+  fadeInWhiteLinear(17248);                           //Fade in for 00:25:00.032
+  colorFlash(300, pixels.Color(255,255,255),500,500); //Flash   for 00:05:00
+  delay(84600000-32);                                 //Wait    for 23:30:00 -.032
 }
 
 // Fade in all pixels with white color
@@ -20,6 +20,14 @@ void fadeInWhite(uint16_t wait) {
   for (int i = 0; i < 256; i++) {
     setAllPixels(pixels.Color(i,i,i));
     delay(wait);
+  }
+}
+
+// Fade in all pixels with white color in "linear" fashion
+void fadeInWhiteLinear(uint16_t wait) {
+  for (int i = 0; i < 256; i++) {
+    setAllPixels(pixels.Color(i,i,i));
+    delay( wait / ((i/32)+1) );
   }
 }
 
@@ -47,11 +55,3 @@ void colorFlash(uint16_t num, uint32_t c,
     delay(waitOff);
   }
 }
-
-// Fade in all pixels with flashing white color
-void fadeInFlashWhite(uint16_t waitOn, uint16_t waitOff) {
-  for (int i = 0; i < 256; i++) {
-    colorFlash(1, pixels.Color(i,i,i), waitOn, waitOff);
-  }
-}
-
