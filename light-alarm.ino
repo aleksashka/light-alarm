@@ -1,14 +1,14 @@
 #include <Adafruit_NeoPixel.h>
-#define PIN 11
-#define REDBUT 12
-#define WHIBUT 13
+#define REDBUT 2
+#define WHIBUT 3
+#define NEOPIN 4
 #define NUMPIXELS 16
 Adafruit_NeoPixel pixels = 
-//  Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800); //Nano
-  Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800); //UNO
+//  Adafruit_NeoPixel(NUMPIXELS, NEOPIN, NEO_RGB + NEO_KHZ800); //Nano
+  Adafruit_NeoPixel(NUMPIXELS, NEOPIN, NEO_GRB + NEO_KHZ800); //UNO
 
 //Night-light variables
-const uint8_t baseB = 1;    //Base brightness
+const uint8_t baseB = 0;    //Base brightness
 //uint32_t countdown = 600000;//10 minutes countdown
 uint16_t baseDelay = 50;    // Base delay within loop function
 uint8_t p1, p2, p3, delayMultiplier, newVal;
@@ -24,22 +24,23 @@ bool doubleButtonOdd = false;
 bool alarmOnly = true; //on boot - light alarm, press any key to switch to night light
 
 void setup() {
-  pinMode(REDBUT, INPUT);
-  pinMode(WHIBUT, INPUT);
-  redButtonPressed = digitalRead(REDBUT);
+  pinMode(REDBUT, INPUT_PULLUP);
+  pinMode(WHIBUT, INPUT_PULLUP);
+  redButtonPressed = !digitalRead(REDBUT);
+  whiteButtonPressed = !digitalRead(WHIBUT);
 //  redButtonPressed = true;
-  if (redButtonPressed) { alarmOnly = false; }
+  if (redButtonPressed or whiteButtonPressed) { alarmOnly = false; }
   pixels.begin();
   pixels.show();
   if (!alarmOnly) {
-    colorFlash(2, pixels.Color(red,0,0),1000,1000);
+    colorFlash(1, pixels.Color(1,0,0),1000,1000);
     setAllPixels(pixels.Color(red,0,0));
   }
 }
 
 void loop() {
-  redButtonPressed   = digitalRead(REDBUT);
-  whiteButtonPressed = digitalRead(WHIBUT);
+  redButtonPressed   = !digitalRead(REDBUT);
+  whiteButtonPressed = !digitalRead(WHIBUT);
   if (alarmOnly) {
     fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
     fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
@@ -96,13 +97,18 @@ void nightLight() {
 //References (&) to variables are passed instead of just values
 void upDown(uint8_t& activeCounter, uint8_t step, bool& activeCounterUp, uint8_t& inactiveCounter, bool& inactiveCounterUp) {
   inactiveCounter = 1; inactiveCounterUp = false;
-  if (activeCounter == 0 or activeCounter == 255 or allButtonsReleased) {activeCounterUp = !activeCounterUp;}
+  if (activeCounter == 0 or activeCounter == 255 or allButtonsReleased) {
+    activeCounterUp = !activeCounterUp;
+  }
   if (activeCounterUp) {
     activeCounter+=step;
     if (activeCounter > 255 - step) {activeCounter = 255;}
   } else {
     activeCounter-=step;
-    if (activeCounter < step) {activeCounter = 0;}
+    if (activeCounter < step) {
+      activeCounter = 0;
+      delayMultiplier = 10;
+    }
   }
 }
 
