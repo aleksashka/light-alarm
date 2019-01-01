@@ -1,4 +1,5 @@
 #include <Adafruit_NeoPixel.h>
+#include <DS3231_Simple.h>
 #define REDBUT 2
 #define WHIBUT 3
 #define NEOPIN 4
@@ -23,7 +24,10 @@ bool whiteButtonPressed = false;
 bool doubleButtonOdd = false;
 bool alarmOnly = true; //on boot - light alarm, press any key to switch to night light
 
+DS3231_Simple Clock;
+
 void setup() {
+  Clock.begin();
   pinMode(REDBUT, INPUT_PULLUP);
   pinMode(WHIBUT, INPUT_PULLUP);
   redButtonPressed = !digitalRead(REDBUT);
@@ -31,7 +35,10 @@ void setup() {
 //  redButtonPressed = true;
   if (redButtonPressed or whiteButtonPressed) { alarmOnly = false; }
   pixels.begin();
+  setAllPixels(pixels.Color(0,0,0));
   pixels.show();
+  showTimeOnGrid(pixels.Color(1,0,0), Clock.read());
+  delay(5000);
   if (!alarmOnly) {
     colorFlash(1, pixels.Color(1,0,0),1000,1000);
     setAllPixels(pixels.Color(red,0,0));
@@ -54,6 +61,64 @@ void loop() {
   delay(baseDelay * delayMultiplier / ((p1/32)+1) );
   delayMultiplier = 1;
 }//loop
+
+void showTimeOnGrid(uint32_t c, DateTime dt){
+  int n0, n1, n2, n3;
+  n0 = dt.Hour / 10;
+  n1 = dt.Hour % 10;
+  n2 = dt.Minute / 10;
+  n3 = dt.Minute % 10;
+  setNeoGrid(c, n0, n1, n2, n3);
+}
+
+void setNeoGrid(uint32_t c, int n0, int n1, int n2, int n3) {
+  setNeoLine(0, n0, c);
+  setNeoLine(1, n1, c);
+  setNeoLine(2, n2, c);
+  setNeoLine(3, n3, c);
+  pixels.show();
+}
+
+void setNeoLine(int line, int num, uint32_t c) {
+  bool BOOL_NUM[4];
+  bool leftToRight = line % 2;
+  int BOOL_POS;
+  if (leftToRight){
+    BOOL_POS = 0;
+  } else {
+    BOOL_POS = 3;
+  }
+  decToBin(BOOL_NUM, num, 4);
+  for (int pix = 4 * line; pix < 4 * (line +1); pix++){
+    if (BOOL_NUM[BOOL_POS]){
+      pixels.setPixelColor(pix, c);
+    } else {
+      pixels.setPixelColor(pix, pixels.Color(0,0,0));
+    }
+    if (leftToRight){
+      BOOL_POS++;
+    } else {
+      BOOL_POS--;
+    }
+  }
+}
+
+void decToBin(bool* BOOL_OUT, int INT_IN, int MAX_BITS){
+  int MAX_VAL = 1;
+  for (int i = 0; i < MAX_BITS; i++){
+    MAX_VAL *= 2;
+    BOOL_OUT[i] = 0;
+  }
+  if (INT_IN > MAX_VAL){
+    for (int i = 0; INT_IN > 0; i++){
+      BOOL_OUT[i] = 0;
+    }
+  }
+  for (int i = 0; INT_IN > 0; i++){
+    BOOL_OUT[i] = INT_IN % 2;
+    INT_IN /= 2;
+  }
+}
 
 void nightLight() {
   if (redButtonPressed or whiteButtonPressed) {
