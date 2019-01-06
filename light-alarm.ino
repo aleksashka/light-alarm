@@ -207,7 +207,57 @@ void colorFlash(uint16_t num, uint32_t c,
   }
 }
 
+class fader {
+  int B; // B - current brightness to set
+  int maxB = 31; // maxB - maximum brightness
+  int prevB = -1; // prevB - previous value of brightness
+  bool enabled = false; // true if fader object is enabled
+  unsigned long startTime = 0;
+  unsigned long duration = 0; // total fade duration
+  byte bVal[32] = {  0,   1,   2,   3,   4,   5,   7,   9,
+                    12,  15,  18,  22,  27,  32,  38,  44,
+                    51,  58,  67,  76,  86,  96, 108, 120,
+                   134, 148, 163, 180, 197, 216, 235, 255};
+
+  public:
+
+  void enable(unsigned long duration_){
+    enabled = true;
+    duration = duration_;
+    startTime = millis();
+  }
+
+  void enable(){
+    enabled = true;
+    startTime = millis();
+  }
+
+  void disable(){
+    enabled = false;
+    setAllPixels(pixels.Color(0,0,0));
+  }
+
+  void update(){
+    if (enabled) {
+      unsigned long curTime = millis();
+      if (curTime - startTime > duration) {
+        enabled = false;
+        setAllPixels(pixels.Color(0,0,0));
+        return;
+      }
+      B = map(curTime, startTime, startTime + duration, 0, maxB);
+      if (B != prevB) {
+        prevB = B;
+//        Serial.print(B);Serial.print(" - ");Serial.println(bVal[B]);
+//        setNeoGrid(B/100, (B%100)/10, (B%10), (duration/durationStep)%16, pixels.Color(10,0,0));
+        setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+      }
+    };
+  }
+};
+
 DS3231_Simple Clock;
+fader f;
 
 void setup() {
   Clock.begin();
@@ -243,18 +293,23 @@ void loop() {
   redButtonPressed   = !digitalRead(REDBUT);
   whiteButtonPressed = !digitalRead(WHIBUT);
   uint8_t AlarmsFired = Clock.checkAlarms();
-  if (AlarmsFired & 2){
-    fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
-    fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
-    colorFlash(30, pixels.Color(255,255,0),1000,1000);    //Flash Yellow 00:01:00
-    colorFlash(30, pixels.Color(0,255,0),1000,1000);      //Flash Green  00:01:00
-    colorFlash(30, pixels.Color(0,0,255),1000,1000);      //Flash Blue   00:01:00
-    colorFlash(600, pixels.Color(255,255,255),500,500);   //Flash White  00:10:00
+  if (AlarmsFired & 2 or redButtonPressed){
+    f.enable(1000);
+    if(0){
+      fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
+      fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
+      colorFlash(30, pixels.Color(255,255,0),1000,1000);    //Flash Yellow 00:01:00
+      colorFlash(30, pixels.Color(0,255,0),1000,1000);      //Flash Green  00:01:00
+      colorFlash(30, pixels.Color(0,0,255),1000,1000);      //Flash Blue   00:01:00
+      colorFlash(600, pixels.Color(255,255,255),500,500);   //Flash White  00:10:00
+    }
   }
-  if (showTime){
-    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
-  }
-  delay(1000);
+  if (whiteButtonPressed) f.disable();
+  f.update();
+//  if (showTime){
+//    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
+//  }
+//  delay(1000);
 //  nightLight();
 //  delay(baseDelay * delayMultiplier / ((p1/32)+1) );
 //  delayMultiplier = 1;
