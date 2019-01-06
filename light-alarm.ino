@@ -25,61 +25,9 @@ bool doubleButtonOdd = false;
 bool alarmOnly = true; //on boot - light alarm, press any key to switch to night light
 bool showTime = false; //press any key on start to show time
 
-DS3231_Simple Clock;
-
-void setup() {
-  Clock.begin();
-  pinMode(REDBUT, INPUT_PULLUP);
-  pinMode(WHIBUT, INPUT_PULLUP);
-  redButtonPressed = !digitalRead(REDBUT);
-  whiteButtonPressed = !digitalRead(WHIBUT);
-  pixels.begin();
-  //Turn grid off
-  setAllPixels(pixels.Color(0,0,0));
-  if (redButtonPressed or whiteButtonPressed) {
-    showTime = true;
-    // To set alarm change if to 1, set Hour and Minute below,
-    // upload code and run once with pressed button,
-    // then change if to 0 and upload again
-    if (0){
-      DateTime MyTimestamp = Clock.read();
-      MyTimestamp.Hour = 14;
-      MyTimestamp.Minute = 30;
-      Clock.disableAlarms();
-      Clock.setAlarm(MyTimestamp, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR);
-      colorFlash(1, pixels.Color(0,1,0),200,200);
-    }
-  }
-  if (!alarmOnly) {
-    colorFlash(1, pixels.Color(1,0,0),1000,1000);
-    setAllPixels(pixels.Color(red,0,0));
-  }
-//  Serial.begin(9600);
-}
-
-void loop() {
-  redButtonPressed   = !digitalRead(REDBUT);
-  whiteButtonPressed = !digitalRead(WHIBUT);
-  uint8_t AlarmsFired = Clock.checkAlarms();
-  if (AlarmsFired & 2){
-    fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
-    fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
-    colorFlash(30, pixels.Color(255,255,0),1000,1000);    //Flash Yellow 00:01:00
-    colorFlash(30, pixels.Color(0,255,0),1000,1000);      //Flash Green  00:01:00
-    colorFlash(30, pixels.Color(0,0,255),1000,1000);      //Flash Blue   00:01:00
-    colorFlash(600, pixels.Color(255,255,255),500,500);   //Flash White  00:10:00
-  }
-  if (showTime){
-    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
-  }
-  delay(1000);
-//  nightLight();
-//  delay(baseDelay * delayMultiplier / ((p1/32)+1) );
-//  delayMultiplier = 1;
-}//loop
-
 void showDateTimeOnGridHM(DateTime dt, uint32_t c){
   int n0, n1, n2, n3;
+
   n0 = dt.Hour / 10;
   n1 = dt.Hour % 10;
   n2 = dt.Minute / 10;
@@ -89,6 +37,7 @@ void showDateTimeOnGridHM(DateTime dt, uint32_t c){
 
 void showDateTimeOnGridMS(DateTime dt, uint32_t c){
   int n0, n1, n2, n3;
+
   n0 = dt.Minute / 10;
   n1 = dt.Minute % 10;
   n2 = dt.Second / 10;
@@ -108,6 +57,7 @@ void setNeoLine(int line, int num, uint32_t c) {
   bool BOOL_NUM[4];
   bool leftToRight = line % 2;
   int BOOL_POS;
+
   if (leftToRight){
     BOOL_POS = 0;
   } else {
@@ -220,16 +170,16 @@ void fadeInWhiteLinear(uint16_t wait) {
 
 // Fade in all pixels with white color in "linear" fashion
 void fadeInOutWhiteLinear(uint16_t count, uint16_t wait) {
-for (int c = 0; c < count; c++){
-  for (int i = 0; i < 256; i++) {
-    setAllPixels(pixels.Color(i,i,i));
-    delay( wait / ((i/32)+1) );
+  for (int c = 0; c < count; c++){
+    for (int i = 0; i < 256; i++) {
+      setAllPixels(pixels.Color(i,i,i));
+      delay( wait / ((i/32)+1) );
+    }
+    for (int i = 255; i > 0; i--) {
+      setAllPixels(pixels.Color(i,i,i));
+      delay( wait / ((i/32)+1) );
+    }
   }
-  for (int i = 255; i > 0; i--) {
-    setAllPixels(pixels.Color(i,i,i));
-    delay( wait / ((i/32)+1) );
-  }
-}
 }
 
 void setAllPixels(uint32_t c) {
@@ -256,3 +206,56 @@ void colorFlash(uint16_t num, uint32_t c,
     delay(waitOff);
   }
 }
+
+DS3231_Simple Clock;
+
+void setup() {
+  Clock.begin();
+  pinMode(REDBUT, INPUT_PULLUP);
+  pinMode(WHIBUT, INPUT_PULLUP);
+  redButtonPressed = !digitalRead(REDBUT);
+  whiteButtonPressed = !digitalRead(WHIBUT);
+  pixels.begin();
+  //Turn grid off
+  setAllPixels(pixels.Color(0,0,0));
+  if (redButtonPressed or whiteButtonPressed) {
+    showTime = true;
+    // To set alarm change if to 1, set Hour and Minute below,
+    // upload code and run once with pressed button,
+    // then change if to 0 and upload again
+    if (0){
+      DateTime MyTimestamp = Clock.read();
+      MyTimestamp.Hour = 14;
+      MyTimestamp.Minute = 30;
+      Clock.disableAlarms();
+      Clock.setAlarm(MyTimestamp, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR);
+      colorFlash(1, pixels.Color(0,1,0),200,200);
+    }
+  }
+  if (!alarmOnly) {
+    colorFlash(1, pixels.Color(1,0,0),1000,1000);
+    setAllPixels(pixels.Color(red,0,0));
+  }
+//  Serial.begin(9600);
+}
+
+void loop() {
+  redButtonPressed   = !digitalRead(REDBUT);
+  whiteButtonPressed = !digitalRead(WHIBUT);
+  uint8_t AlarmsFired = Clock.checkAlarms();
+  if (AlarmsFired & 2){
+    fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
+    fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
+    colorFlash(30, pixels.Color(255,255,0),1000,1000);    //Flash Yellow 00:01:00
+    colorFlash(30, pixels.Color(0,255,0),1000,1000);      //Flash Green  00:01:00
+    colorFlash(30, pixels.Color(0,0,255),1000,1000);      //Flash Blue   00:01:00
+    colorFlash(600, pixels.Color(255,255,255),500,500);   //Flash White  00:10:00
+  }
+  if (showTime){
+    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
+  }
+  delay(1000);
+//  nightLight();
+//  delay(baseDelay * delayMultiplier / ((p1/32)+1) );
+//  delayMultiplier = 1;
+}//loop
