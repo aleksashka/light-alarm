@@ -210,13 +210,14 @@ void colorFlash(uint16_t num, uint32_t c,
 }
 
 class fader {
-  int B; // B - current brightness to set
-  int maxB = 31; // maxB - maximum brightness
+  int B; // B - current brightness to set (index of bVal array)
+  int maxB = 31; // maxB - maximum brightness (index of bVal array)
   int prevB = -1; // prevB - previous value of brightness
   byte mode; // 1 - fade in
              // 2 - fade out
              // 3 - fade inOut
   byte seq; // Sequence number to track modes
+  int count; // Number of times to run fader
   byte fromB, toB;// start and end bVal to use in fader::update
   bool enabled = false; // true if fader object is enabled
   unsigned long startTime = 0;
@@ -230,10 +231,11 @@ class fader {
 
   public:
 
-  void enable(unsigned long duration_, byte mode_ = 1, byte seq_ = 1){
+  void enable(unsigned long duration_, byte mode_ = 1, byte seq_ = 1, int count_ = 1){
     duration = duration_;
     mode = mode_;
     seq = seq_;
+    count = count_;
     switch (mode) {
       case 2: fromB = maxB; toB = 0;
               scaledDuration = duration;
@@ -269,9 +271,14 @@ class fader {
     if (enabled) {
       unsigned long curTime = millis();
       if (curTime - startTime > duration) {
-        enabled = false;
-        setAllPixels(pixels.Color(0,0,0));
-        return seq;
+        if (count == 1){
+          enabled = false;
+          setAllPixels(pixels.Color(0,0,0));
+          return seq;
+        } else {
+          startTime = millis();
+          count -= 1;
+        }
       }
       if (mode == 3) {
         if (curTime - startTime < scaledDuration) {
@@ -361,9 +368,9 @@ void loop() {
     case 0: break;
     case 1: //f.enable(1000,2);
             break;
-    case 2: f.enable(1000,3,3);
+    case 2: f.enable(200,3,3,5);//200ms,fadeInOut,seq3,5times
             break;
-    case 3: f.enable(500,2,4);
+    case 3: f.enable(500,2,4);//500ms,fadeOut,seq4
             break;
     default: break;
   }
