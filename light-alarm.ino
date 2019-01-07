@@ -24,6 +24,8 @@ bool whiteButtonPressed = false;
 bool doubleButtonOdd = false;
 bool alarmOnly = true; //on boot - light alarm, press any key to switch to night light
 bool showTime = false; //press any key on start to show time
+int debounce = 250; //debounce interval for button press
+unsigned long redButtonPressTime = 0; //Last time red button was pressed
 
 void showDateTimeOnGridHM(DateTime dt, uint32_t c){
   int n0, n1, n2, n3;
@@ -211,9 +213,16 @@ class fader {
   int B; // B - current brightness to set
   int maxB = 31; // maxB - maximum brightness
   int prevB = -1; // prevB - previous value of brightness
+  byte mode; // 1 - fade in
+             // 2 - fade out
+             // 3 - fade inOut
+  byte seq; // Sequence number to track modes
+  byte fromB, toB;// start and end bVal to use in fader::update
   bool enabled = false; // true if fader object is enabled
   unsigned long startTime = 0;
   unsigned long duration = 0; // total fade duration
+  unsigned long scaledDuration = 0; // mode-dependant duration (half in mode 3)
+  //http://forum.arduino.cc/index.php?topic=147818.msg1113263#msg1113263
   byte bVal[32] = {  0,   1,   2,   3,   4,   5,   7,   9,
                     12,  15,  18,  22,  27,  32,  38,  44,
                     51,  58,  67,  76,  86,  96, 108, 120,
@@ -221,9 +230,21 @@ class fader {
 
   public:
 
-  void enable(unsigned long duration_){
-    enabled = true;
+  void enable(unsigned long duration_, byte mode_ = 1, byte seq_ = 1){
     duration = duration_;
+    mode = mode_;
+    seq = seq_;
+    switch (mode) {
+      case 2: fromB = maxB; toB = 0;
+              scaledDuration = duration;
+              break;
+      case 3: scaledDuration = duration / 2;
+              break;
+      default:fromB = 0;    toB = maxB;
+              scaledDuration = duration;
+              mode = 1;
+    }
+    enabled = true;
     startTime = millis();
   }
 
@@ -237,22 +258,41 @@ class fader {
     setAllPixels(pixels.Color(0,0,0));
   }
 
-  void update(){
+  void setMode(byte mode_){ mode = mode_; }
+  byte getMode()          { return mode;  }
+
+  void setSeq(byte seq_)  { seq = seq_;   }
+  byte getSeq()           { return seq;   }
+
+  // Inspired by http://forum.arduino.cc/index.php?topic=323704.msg2237381#msg2237381
+  byte update(){
     if (enabled) {
       unsigned long curTime = millis();
       if (curTime - startTime > duration) {
         enabled = false;
         setAllPixels(pixels.Color(0,0,0));
-        return;
+        return seq;
       }
-      B = map(curTime, startTime, startTime + duration, 0, maxB);
+      if (mode == 3) {
+        if (curTime - startTime < scaledDuration) {
+          // The first half of duration (fadeIn)
+          fromB = 0;    toB = maxB;
+        } else {
+          // The second half of duration (fadeOut)
+          fromB = maxB; toB = 0;
+          curTime -= scaledDuration; //
+        }
+      }
+    // Original version, then -startTime, then scaledDuration
+    //B = map(curTime            , startTime, startTime + duration, fromB, toB);
+    //B = map(curTime - startTime,         0,             duration, fromB, toB);
+      B = map(curTime - startTime,         0,       scaledDuration, fromB, toB);
       if (B != prevB) {
         prevB = B;
-//        Serial.print(B);Serial.print(" - ");Serial.println(bVal[B]);
-//        setNeoGrid(B/100, (B%100)/10, (B%10), (duration/durationStep)%16, pixels.Color(10,0,0));
         setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
       }
-    };
+    }
+    return 0;
   }
 };
 
@@ -294,7 +334,17 @@ void loop() {
   whiteButtonPressed = !digitalRead(WHIBUT);
   uint8_t AlarmsFired = Clock.checkAlarms();
   if (AlarmsFired & 2 or redButtonPressed){
-    f.enable(1000);
+    if (redButtonPressed){
+      unsigned long curTime = millis();
+      if (curTime - redButtonPressTime > debounce) {
+        redButtonPressTime = curTime;
+        // Fade in (,1,) for 500ms with seq 2
+        f.enable(500,1,2);
+      }
+    } else {
+      // Fade in (default mode) for 30 minutes (30m * 60s * 1000ms) with default seq 1
+      f.enable(1800000);
+    }
     if(0){
       fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
       fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
@@ -305,7 +355,18 @@ void loop() {
     }
   }
   if (whiteButtonPressed) f.disable();
-  f.update();
+
+  // An example of using seq to track current sequence and initiate the next one
+  switch (f.update()) {
+    case 0: break;
+    case 1: //f.enable(1000,2);
+            break;
+    case 2: f.enable(1000,3,3);
+            break;
+    case 3: f.enable(500,2,4);
+            break;
+    default: break;
+  }
 //  if (showTime){
 //    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
 //  }
