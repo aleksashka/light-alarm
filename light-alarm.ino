@@ -152,7 +152,7 @@ class fader {
         } else {
           // The second half of duration (fadeOut)
           fromB = maxB; toB = 0;
-          curTime -= scaledDuration; //
+          curTime -= scaledDuration;
         }
       }
     // Original version, then -startTime, then scaledDuration
@@ -345,12 +345,17 @@ void setup() {
   //Serial.begin(9600);
   //Serial.begin(115200);
   //Serial.println("Go!");
-  showTimeTemp = true;
-  showTimeStamp = millis();
   if (!digitalRead(GREBUT)) {
     // Demo mode on green hold at power on
+    setAllPixels(pixels.Color(1,1,1));
+    delay(300);
+    setAllPixels(pixels.Color(0,0,0));
+    delay(700);
     alarmActive = true;
     f.enable(2000,1,10,1); // 3s,fadeIn,seq=10,1time
+  } else {
+    showTimeTemp = true;
+    showTimeStamp = millis();
   }
 }
 
