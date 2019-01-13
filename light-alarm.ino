@@ -82,6 +82,7 @@ class fader {
   byte mode; // 1 - fade in
              // 2 - fade out
              // 3 - fade inOut
+             // 4 - fade in slowly (start with one pixel at a time)
   byte seq; // Sequence number to track modes
   int count; // Number of times to run fader
   byte fromB, toB;// start and end bVal to use in fader::update
@@ -107,6 +108,9 @@ class fader {
               scaledDuration = duration;
               break;
       case 3: scaledDuration = duration / 2;
+              break;
+      case 4: fromB = 0; toB = maxB + 13;
+              scaledDuration = duration;
               break;
       default:fromB = 0;    toB = maxB;
               scaledDuration = duration;
@@ -161,7 +165,17 @@ class fader {
       B = map(curTime - startTime,         0,       scaledDuration, fromB, toB);
       if (B != prevB) {
         prevB = B;
-        setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+        if (mode == 4) {
+          if (B <= 14) {
+            pixels.setPixelColor(B, pixels.Color(1,1,1));
+            pixels.show();
+          } else { // B > 14
+            B -= 14;
+            setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+          }
+        } else {
+          setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+        }
       }
     }
     return 0;
@@ -352,7 +366,7 @@ void setup() {
     setAllPixels(pixels.Color(0,0,0));
     delay(700);
     alarmActive = true;
-    f.enable(2000,1,10,1); // 3s,fadeIn,seq=10,1time
+    f.enable(3000,4,10,1); // 3s,fadeInSlow,seq=10(demo),1time
   } else {
     showTimeTemp = true;
     showTimeStamp = millis();
@@ -492,7 +506,7 @@ void loop() {
       if (alarmsFired & 2) {
         alarmActive = true;
         //f.enable(500,3,3,5);
-        f.enable(1200000,1,2,1); //20min,fadeIn,seq2,1time
+        f.enable(1200000,4,2,1); //20min,fadeInSlow,seq2,1time
       }
     }
     if (showTimeConst) {
