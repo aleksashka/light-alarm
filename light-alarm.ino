@@ -1,49 +1,20 @@
 #include <Adafruit_NeoPixel.h>
 #include <DS3231_Simple.h>
 #define REDBUT 2
-#define WHIBUT 3
+#define GREBUT 3
 #define NEOPIN 4
 #define NUMPIXELS 16
 Adafruit_NeoPixel pixels = 
 //  Adafruit_NeoPixel(NUMPIXELS, NEOPIN, NEO_RGB + NEO_KHZ800); //Nano
   Adafruit_NeoPixel(NUMPIXELS, NEOPIN, NEO_GRB + NEO_KHZ800); //UNO
 
-//Night-light variables
-const uint8_t baseB = 0;    //Base brightness
-//uint32_t countdown = 600000;//10 minutes countdown
-uint16_t baseDelay = 50;    // Base delay within loop function
-uint8_t p1, p2, p3, delayMultiplier, newVal;
-uint8_t red   = baseB;//Initial value
-uint8_t white = 1;    //Initial value
-uint8_t step  = 1;    //Brightness step value
-bool redUp   = false; //Increase (true) or decrease (false) brightness for red color (reversed on each press)
-bool whiteUp = false; //Increase (true) or decrease (false) brightness for white color (reversed on each press)
-bool allButtonsReleased = true; // Set to true in loop if all buttons are released
-bool redButtonPressed   = false;
-bool whiteButtonPressed = false;
-bool doubleButtonOdd = false;
-bool alarmOnly = true; //on boot - light alarm, press any key to switch to night light
-bool showTime = false; //press any key on start to show time
-int debounce = 250; //debounce interval for button press
-unsigned long redButtonPressTime = 0; //Last time red button was pressed
-
-void showDateTimeOnGridHM(DateTime dt, uint32_t c){
+void showTimeOnGrid(DateTime dt, uint32_t c){
   int n0, n1, n2, n3;
 
   n0 = dt.Hour / 10;
   n1 = dt.Hour % 10;
   n2 = dt.Minute / 10;
   n3 = dt.Minute % 10;
-  setNeoGrid(n0, n1, n2, n3, c);
-}
-
-void showDateTimeOnGridMS(DateTime dt, uint32_t c){
-  int n0, n1, n2, n3;
-
-  n0 = dt.Minute / 10;
-  n1 = dt.Minute % 10;
-  n2 = dt.Second / 10;
-  n3 = dt.Second % 10;
   setNeoGrid(n0, n1, n2, n3, c);
 }
 
@@ -97,116 +68,11 @@ void decToBin(bool* BOOL_OUT, int INT_IN, int MAX_BITS){
   }
 }
 
-void nightLight() {
-  if (redButtonPressed or whiteButtonPressed) {
-    if (redButtonPressed and whiteButtonPressed) {
-      if (doubleButtonOdd) {
-        newVal = 255;
-        delayMultiplier = 100;
-      } else {
-        newVal = 0;
-        delayMultiplier = 10;
-      }
-      if (red == 1) {
-        whiteUp = doubleButtonOdd;
-        white = p1 = p2 = p3 = newVal;
-      }
-      else if (white == 1) {
-        redUp = doubleButtonOdd;
-        red = p1 = newVal;
-        p2 = p3 = 0;
-      }
-      doubleButtonOdd = !doubleButtonOdd;
-    }//red and white
-    else if (redButtonPressed) {
-      upDown(red, step, redUp, white, whiteUp);
-      p1 = red;
-      p2 = p3 = 0;
-    }//red
-    else if (whiteButtonPressed) {
-      upDown(white, step, whiteUp, red, redUp);
-      p1 = p2 = p3 = white;
-    }//white
-    setAllPixels(pixels.Color(p1,p2,p3));
-    allButtonsReleased = false;
-  }//red or white
-  else {
-    allButtonsReleased = true;
-    doubleButtonOdd = false;
-  }
-}
-
-//References (&) to variables are passed instead of just values
-void upDown(uint8_t& activeCounter, uint8_t step, bool& activeCounterUp, uint8_t& inactiveCounter, bool& inactiveCounterUp) {
-  inactiveCounter = 1; inactiveCounterUp = false;
-  if (activeCounter == 0 or activeCounter == 255 or allButtonsReleased) {
-    activeCounterUp = !activeCounterUp;
-  }
-  if (activeCounterUp) {
-    activeCounter+=step;
-    if (activeCounter > 255 - step) {activeCounter = 255;}
-  } else {
-    activeCounter-=step;
-    if (activeCounter < step) {
-      activeCounter = 0;
-      delayMultiplier = 10;
-    }
-  }
-}
-
-// Fade in all pixels with white color
-void fadeInWhite(uint16_t wait) {
-  for (int i = 0; i < 256; i++) {
-    setAllPixels(pixels.Color(i,i,i));
-    delay(wait);
-  }
-}
-
-// Fade in all pixels with white color in "linear" fashion
-void fadeInWhiteLinear(uint16_t wait) {
-  for (int i = 0; i < 256; i++) {
-    setAllPixels(pixels.Color(i,i,i));
-    delay( wait / ((i/32)+1) );
-  }
-}
-
-// Fade in all pixels with white color in "linear" fashion
-void fadeInOutWhiteLinear(uint16_t count, uint16_t wait) {
-  for (int c = 0; c < count; c++){
-    for (int i = 0; i < 256; i++) {
-      setAllPixels(pixels.Color(i,i,i));
-      delay( wait / ((i/32)+1) );
-    }
-    for (int i = 255; i > 0; i--) {
-      setAllPixels(pixels.Color(i,i,i));
-      delay( wait / ((i/32)+1) );
-    }
-  }
-}
-
 void setAllPixels(uint32_t c) {
   for (uint16_t i=0; i<pixels.numPixels(); i++) {
     pixels.setPixelColor(i, c);
   }
   pixels.show();
-}
-
-// Turn all LEDs on, wait, turn off, wait
-void colorFlash(uint16_t num, uint32_t c, 
-                uint16_t waitOn, uint16_t waitOff) {
-  for (uint16_t j=0; j<num; j++) {
-    for(uint16_t i=0; i<pixels.numPixels(); i++) {
-      pixels.setPixelColor(i, c);
-    }
-    pixels.show();
-    delay(waitOn);
-    
-    for(uint16_t i=0; i<pixels.numPixels(); i++) {
-      pixels.setPixelColor(i, pixels.Color(0,0,0));
-    }
-    pixels.show();
-    delay(waitOff);
-  }
 }
 
 class fader {
@@ -273,7 +139,6 @@ class fader {
       if (curTime - startTime > duration) {
         if (count == 1){
           enabled = false;
-          setAllPixels(pixels.Color(0,0,0));
           return seq;
         } else {
           startTime = millis();
@@ -303,82 +168,343 @@ class fader {
   }
 };
 
+class setHM{ // Set hour and minute
+  int setTimeout = 10000; //how long to wait after interaction until exit
+  int blinkTimeout = 300; //how long highlight current line
+  unsigned long curLineStamp = 0; //timestamp of last change of current line
+  unsigned long lastStamp = 0; //timestamp of last user interaction
+  byte h1, h0, m1, m0; //digits 1 and 0 of hours (h) and minutes (m)
+  byte curLine; //current line to change digit
+  uint32_t c; //main color to show all digits
+  uint32_t b; //blink color to highlight current line
+  bool modified; //true if any value has been modified
+
+  public:
+  void getTimestamp(DateTime & dt) {
+    dt.Hour   = h1*10 + h0;
+    dt.Minute = m1*10 + m0;
+  }
+  void enable(DateTime dt, uint32_t c_, uint32_t b_){
+    h1 = dt.Hour / 10;
+    h0 = dt.Hour % 10;
+    m1 = dt.Minute / 10;
+    m0 = dt.Minute % 10;
+    c  = c_;
+    b  = b_;
+    curLine = 0;
+    modified = false;
+    curLineStamp = lastStamp = millis();
+  }
+  byte nextLine(){
+    curLineStamp = lastStamp = millis();
+    if (curLine == 3) {// no more lines
+      if (modified) {
+        return 1;//something was changed
+      } else {
+        return 2;//nothing was changed
+      }
+    } else {//more lines to check
+      curLine += 1;
+    }
+    return 0;//nothing to do yet
+  }
+  byte click(){
+    lastStamp = millis();
+    modified = true;
+    switch (curLine) {
+      case 0: if (h1 >= 2) h1 = 0; else h1 += 1; break;
+      case 1: if (h0 >= 9) {
+                h0 = 0;
+              } else if (h1 == 2 and h0 >= 3) {
+                h0 = 0;
+              } else {
+                h0 += 1;
+              }
+              break;
+      case 2: if (m1 >= 5) m1 = 0; else m1 += 1; break;
+      case 3: if (m0 >= 9) m0 = 0; else m0 += 1; break;
+    };
+  }
+  byte update(bool & boolSet){
+    unsigned long curTime = millis();
+    if (curTime - lastStamp > setTimeout){
+      boolSet = 0;
+      setNeoGrid(0, 0, 0, 0, c);
+      return 1;//timeout happened
+    }
+    if (curTime - curLineStamp < blinkTimeout){
+      setNeoLine(0, h1, c);
+      setNeoLine(1, h0, c);
+      setNeoLine(2, m1, c);
+      setNeoLine(3, m0, c);
+      setNeoLine(curLine, 15, b);
+      pixels.show();
+    } else {
+      setNeoGrid(h1, h0, m1, m0, c);
+    }
+    return 0;
+  }
+};
+
+class button{
+  int debounce = 50;
+  int longPressTimeout = 1000;      // time after hold to initiate long press
+  int longPressRepeatTimeout = 300; // time after last long press until next long press
+  int curLongPressRepeatTimeout = 0;// current time above
+  int pin;
+  bool curPressed;    // true if currently pressed
+  bool prevPressed;   // true if previously was pressed
+  bool longPressInAct;// true if long press is in action
+  bool varSingleClick;// single press event
+  bool varLongPress;  // long press event
+  unsigned long lastPressTime;
+  unsigned long lastLongPressTime;
+  unsigned long upTime;
+  unsigned long downTime;
+
+  public:
+  button (int pin_, int mode_){
+    pin = pin_;
+    pinMode(pin, mode_);
+    curPressed = false;
+    prevPressed = false;
+    longPressInAct = false;
+    varSingleClick = false;
+    varLongPress = false;
+    upTime = 0;
+    downTime = 0;
+    lastPressTime = 0;
+    lastLongPressTime = 0;
+  }
+  bool singleClick(){
+    if (varSingleClick) {
+      //Serial.println("single");
+      varSingleClick = 0;
+      return 1;
+    } else return 0;
+  }
+  bool longPress(){
+    if (varLongPress) {
+      //Serial.println("long");
+      varLongPress = 0;
+      return 1;
+    } else return 0;
+  }
+  void update(){
+    unsigned long curTime = millis();
+    curPressed = !digitalRead(pin);
+    if (curPressed and !prevPressed and (curTime - upTime) > debounce) {
+      //Button pressed
+      downTime = curTime;
+      varSingleClick = 1;
+      prevPressed = curPressed;
+    } else if (!curPressed and prevPressed and (curTime - downTime) > debounce) {
+      //Button released
+      longPressInAct = 0;
+      upTime = curTime;
+      prevPressed = curPressed;
+    } else if (curPressed and prevPressed and (curTime - downTime) > longPressTimeout) {
+      //Button held
+      if (!longPressInAct) {
+        // Initial long press action
+        longPressInAct = 1;
+        varLongPress = 1;
+        lastLongPressTime = curTime;
+        //Line below to make sure that first non-initial long press repeat
+        //action is delayed
+        curLongPressRepeatTimeout = longPressTimeout;
+      } else {
+        // Non-initial long press action
+        if (curTime - lastLongPressTime > curLongPressRepeatTimeout ) {
+          curLongPressRepeatTimeout = longPressRepeatTimeout;
+          varLongPress = 1;
+          lastLongPressTime = curTime;
+        }
+      }
+    }
+  }
+};
+
 DS3231_Simple Clock;
 fader f;
+setHM hm;
+button redB(REDBUT, INPUT_PULLUP);
+button greB(GREBUT, INPUT_PULLUP);
+unsigned long showTimeTimeout = 10000; // Timeout to show time after click
+unsigned long showTimeStamp = 0; // millis() of the moment showTimeTemp activated
+bool showTimeTemp = false; // True if time should be shown temporarily only
+bool showTimeConst = false; // True if time should be shown constantly
+bool alarmActive = false; // True if alarm is active
+bool setAlarm = false; // True if alarm set mode is active
+bool setClock = false; // True if clock set mode is active
 
 void setup() {
   Clock.begin();
-  pinMode(REDBUT, INPUT_PULLUP);
-  pinMode(WHIBUT, INPUT_PULLUP);
-  redButtonPressed = !digitalRead(REDBUT);
-  whiteButtonPressed = !digitalRead(WHIBUT);
   pixels.begin();
-  //Turn grid off
-  setAllPixels(pixels.Color(0,0,0));
-  if (redButtonPressed or whiteButtonPressed) {
-    showTime = true;
-    // To set alarm change if to 1, set Hour and Minute below,
-    // upload code and run once with pressed button,
-    // then change if to 0 and upload again
-    if (0){
-      DateTime MyTimestamp = Clock.read();
-      MyTimestamp.Hour = 14;
-      MyTimestamp.Minute = 30;
-      Clock.disableAlarms();
-      Clock.setAlarm(MyTimestamp, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR);
-      colorFlash(1, pixels.Color(0,1,0),200,200);
-    }
+  setAllPixels(pixels.Color(0,0,0)); //Turn grid off
+  //Serial.begin(9600);
+  //Serial.begin(115200);
+  //Serial.println("Go!");
+  showTimeTemp = true;
+  showTimeStamp = millis();
+  if (!digitalRead(GREBUT)) {
+    // Demo mode on green hold at power on
+    alarmActive = true;
+    f.enable(2000,1,10,1); // 3s,fadeIn,seq=10,1time
   }
-  if (!alarmOnly) {
-    colorFlash(1, pixels.Color(1,0,0),1000,1000);
-    setAllPixels(pixels.Color(red,0,0));
-  }
-//  Serial.begin(9600);
 }
 
 void loop() {
-  redButtonPressed   = !digitalRead(REDBUT);
-  whiteButtonPressed = !digitalRead(WHIBUT);
-  uint8_t AlarmsFired = Clock.checkAlarms();
-  if (AlarmsFired & 2 or redButtonPressed){
-    if (redButtonPressed){
-      unsigned long curTime = millis();
-      if (curTime - redButtonPressTime > debounce) {
-        redButtonPressTime = curTime;
-        // Fade in (,1,) for 500ms with seq 2
-        f.enable(500,1,2);
+  redB.update();
+  greB.update();
+  if (redB.singleClick()) {
+    // Red Click event =============================================
+    if (alarmActive){
+      //Serial.println("Alarm->Standby");
+      alarmActive = false;
+      f.disable();
+    } else if (setAlarm) {
+      //Serial.println("Setting the alarm");
+      byte result = hm.nextLine();
+      if (result == 1) { // Alarm was set, so enable it
+        setAlarm = false;
+        DateTime dt = Clock.read();
+        hm.getTimestamp(dt);
+        Clock.disableAlarms();
+        Clock.setAlarm(dt, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR);
+        showTimeTemp = true;
+        showTimeConst = false;
+        showTimeStamp = millis();
+      } else if (result == 2) { // Alarm was not set, so go to clock set mode
+        setAlarm = false;
+        setClock = true;
+        DateTime dt = Clock.read();
+        hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
       }
+    } else if (setClock) {
+      //Serial.println("Setting the clock");
+      byte result = hm.nextLine();
+      if (result == 1) { // Clock was set, so apply
+        DateTime dt = Clock.read();
+        hm.getTimestamp(dt);
+        dt.Second = 0;
+        Clock.write(dt);
+        setClock = false;
+        showTimeTemp = true;
+        showTimeConst = false;
+        showTimeStamp = millis();
+      } else if (result == 2) { // Clock was not set, so go to standby mode
+        setClock = false;
+      }
+    } else if (showTimeConst) {
+      //Serial.println("Show time const->Standby");
+      showTimeConst = false;
+      showTimeTemp = false;
+      setAllPixels(pixels.Color(0,0,0));
+    } else if (showTimeTemp) {
+      //Serial.println("Show time temp->const");
+      showTimeTemp = false;
+      showTimeConst = true;
     } else {
-      // Fade in (default mode) for 30 minutes (30m * 60s * 1000ms) with default seq 1
-      f.enable(1800000);
+      //Serial.println("->Show time temp");
+      showTimeStamp = millis();
+      showTimeConst = false;
+      showTimeTemp = true;
     }
-    if(0){
-      fadeInWhiteLinear(17248);                             //Fade in for  00:25:00
-      fadeInOutWhiteLinear(62,10);                          //Fade in-out  00:02:00
-      colorFlash(30, pixels.Color(255,255,0),1000,1000);    //Flash Yellow 00:01:00
-      colorFlash(30, pixels.Color(0,255,0),1000,1000);      //Flash Green  00:01:00
-      colorFlash(30, pixels.Color(0,0,255),1000,1000);      //Flash Blue   00:01:00
-      colorFlash(600, pixels.Color(255,255,255),500,500);   //Flash White  00:10:00
+  } else if (redB.longPress()) {
+    // Red Hold  event =============================================
+    if (setAlarm) {
+      //Serial.println("setAlarm->Set clock");
+      setAlarm = false;
+      setClock = true;
+      DateTime dt = Clock.read();
+      hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
+    } else if (setClock) {
+      //Serial.println("Set clock->Standby");
+      setClock = false;
+    } else {
+      //Serial.println("->Set alarm");
+      setAlarm = true;
+      DateTime dt = Clock.read();
+      dt.Hour = 5;
+      dt.Minute = 0;
+      hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
+    }
+  } else if (greB.singleClick()) {
+    // Green Click event ===========================================
+    if (alarmActive) {
+      //Serial.println("Alarm->Standby");
+      alarmActive = false;
+      f.disable();
+    } else if (setAlarm or setClock) {
+      //Serial.println("Increment alarm");
+      //Serial.println("Increment clock");
+      hm.click();
+    } else {
+      //Serial.println("->Show time temp");
+      showTimeStamp = millis();
+      showTimeConst = false;
+      showTimeTemp = true;
+    }
+  } else if (greB.longPress()) {
+    // Green Hold event ============================================
+    if (setAlarm or setClock) {
+      hm.click();
     }
   }
-  if (whiteButtonPressed) f.disable();
-
-  // An example of using seq to track current sequence and initiate the next one
-  switch (f.update()) {
-    case 0: break;
-    case 1: //f.enable(1000,2);
-            break;
-    case 2: f.enable(200,3,3,5);//200ms,fadeInOut,seq3,5times
-            break;
-    case 3: f.enable(500,2,4);//500ms,fadeOut,seq4
-            break;
-    default: break;
+  // No buttons were clicked =====================================
+  else if (setAlarm or setClock) {
+    // Set mode is active -----------------------------------------
+    if (setAlarm) {
+      hm.update(setAlarm);
+    } else if (setClock) {
+      hm.update(setClock);
+    }
+  } else if (alarmActive) {
+    // Alarm1 or alarm2 events ---------------------------------
+    byte seq = f.update();
+    switch (seq) {
+      case  0: break;
+      case  1: alarmActive = false;
+               break;
+      case  2: f.enable(500,3,seq+1,60); //500ms,fadeInOut,,60times
+               break;
+      case  3: f.enable(100,3,seq+1,300);
+               break;
+      case 10: f.enable(1000,2,seq+1,1);
+               break;
+      case 11: f.enable(500,3,seq+1,5);
+               break;
+      case 12: f.enable(100,3,seq+1,25);
+               break;
+      default: alarmActive = false;
+               setAllPixels(pixels.Color(0,0,0));
+               break;
+    }
+  } else {
+    if (millis() % 30000 == 0) { // Check for alarm every 30s
+      uint8_t alarmsFired = Clock.checkAlarms();
+      if (alarmsFired & 2) {
+        alarmActive = true;
+        //f.enable(500,3,3,5);
+        f.enable(1200000,1,2,1); //20min,fadeIn,seq2,1time
+      }
+    }
+    if (showTimeConst) {
+      // Show time constantly --------------------------------------
+      if (millis() % 1000 == 0){ // Update grid once a second
+        DateTime dt = Clock.read();
+        showTimeOnGrid(dt, pixels.Color(1,0,0));
+      }
+    } else if (showTimeTemp) {
+      // Show time temporarily -------------------------------------
+      if (millis() - showTimeStamp < showTimeTimeout) {
+        DateTime dt = Clock.read();
+        showTimeOnGrid(dt, pixels.Color(1,0,0));
+      } else {
+        showTimeTemp = false;
+        setAllPixels(pixels.Color(0,0,0));
+      }
+    }
   }
-//  if (showTime){
-//    showDateTimeOnGridHM(Clock.read(), pixels.Color(1,0,0));
-//  }
-//  delay(1000);
-//  nightLight();
-//  delay(baseDelay * delayMultiplier / ((p1/32)+1) );
-//  delayMultiplier = 1;
 }//loop
