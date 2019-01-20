@@ -226,7 +226,10 @@ class setHM{ // Set hour and minute
     lastStamp = millis();
     modified = true;
     switch (curLine) {
-      case 0: if (h1 >= 2) h1 = 0; else h1 += 1; break;
+      case 0: if (h1 == 1 and h0 >= 3) h0 = 0;
+              if (h1 >= 2) h1 = 0;
+              else h1 += 1;
+              break;
       case 1: if (h0 >= 9) {
                 h0 = 0;
               } else if (h1 == 2 and h0 >= 3) {
@@ -398,7 +401,7 @@ void loop() {
         setAlarm = false;
         setClock = true;
         DateTime dt = Clock.read();
-        hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
+        hm.enable(dt, pixels.Color(1,0,0),pixels.Color(0,0,1));
       }
     } else if (setClock) {
       //Serial.println("Setting the clock");
@@ -437,7 +440,7 @@ void loop() {
       setAlarm = false;
       setClock = true;
       DateTime dt = Clock.read();
-      hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
+      hm.enable(dt, pixels.Color(1,0,0),pixels.Color(0,0,1));
     } else if (setClock) {
       //Serial.println("Set clock->Standby");
       setClock = false;
@@ -447,7 +450,7 @@ void loop() {
       DateTime dt = Clock.read();
       dt.Hour = 5;
       dt.Minute = 0;
-      hm.enable(dt, pixels.Color(10,0,0),pixels.Color(0,0,10));
+      hm.enable(dt, pixels.Color(1,0,0),pixels.Color(0,0,1));
     }
   } else if (greB.singleClick()) {
     // Green Click event ===========================================
