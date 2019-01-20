@@ -79,6 +79,8 @@ class fader {
   int B; // B - current brightness to set (index of bVal array)
   int maxB = 31; // maxB - maximum brightness (index of bVal array)
   int prevB = -1; // prevB - previous value of brightness
+  uint32_t orMask; // OR mask to apply before setting NeoPixel's color
+  uint32_t andMask; // AND mask to apply before setting NeoPixel's color
   byte mode; // 1 - fade in
              // 2 - fade out
              // 3 - fade inOut
@@ -116,11 +118,8 @@ class fader {
               scaledDuration = duration;
               mode = 1;
     }
-    enabled = true;
-    startTime = millis();
-  }
-
-  void enable(){
+    setOrMask(0,0,0);
+    setAndMask(255,255,255);
     enabled = true;
     startTime = millis();
   }
@@ -135,6 +134,13 @@ class fader {
 
   void setSeq(byte seq_)  { seq = seq_;   }
   byte getSeq()           { return seq;   }
+
+  void setOrMask(uint8_t red_, uint8_t green_, uint8_t blue_) {
+    orMask = (uint32_t)red_<<16 | (uint32_t)green_<<8 | (uint32_t)blue_;
+  }
+  void setAndMask(uint8_t red_, uint8_t green_, uint8_t blue_) {
+    andMask = (uint32_t)red_<<16 | (uint32_t)green_<<8 | (uint32_t)blue_;
+  }
 
   // Inspired by http://forum.arduino.cc/index.php?topic=323704.msg2237381#msg2237381
   byte update(){
@@ -167,14 +173,14 @@ class fader {
         prevB = B;
         if (mode == 4) {
           if (B <= 14) {
-            pixels.setPixelColor(B, pixels.Color(1,1,1));
+            pixels.setPixelColor(B, pixels.Color(1,1,1) & andMask | orMask);
             pixels.show();
           } else { // B > 14
             B -= 14;
-            setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+            setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]) & andMask | orMask);
           }
         } else {
-          setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]));
+          setAllPixels(pixels.Color(bVal[B], bVal[B], bVal[B]) & andMask | orMask);
         }
       }
     }
@@ -369,7 +375,8 @@ void setup() {
     setAllPixels(pixels.Color(0,0,0));
     delay(700);
     alarmActive = true;
-    f.enable(3000,4,10,1); // 3s,fadeInSlow,seq=10(demo),1time
+    f.enable(2000,4,10,1); // 2s,fadeInSlow,seq=10(demo),1time
+    f.setAndMask(255,0,0); // Fade in red
   } else {
     showTimeTemp = true;
     showTimeStamp = millis();
@@ -489,15 +496,31 @@ void loop() {
       case  0: break;
       case  1: alarmActive = false;
                break;
-      case  2: f.enable(500,3,seq+1,60); //500ms,fadeInOut,,60times
+      case  2: f.enable(300000,1,seq+1,1); //5min,fadeIn,,1time
+               f.setAndMask(255,255,0); //Disable blue
+               f.setOrMask(255,0,0); //Red is always on
                break;
-      case  3: f.enable(100,3,seq+1,300);
+      case  3: f.enable(300000,1,seq+1,1); //5min,fadeIn,,1time
+               f.setOrMask(255,255,0); //Red and green are always on
                break;
-      case 10: f.enable(1000,2,seq+1,1);
+      case  4: f.enable(250,2,seq+1,1); //250ms,fadeOut,,1time
                break;
-      case 11: f.enable(500,3,seq+1,5);
+      case  5: f.enable(500,3,seq+1,60); //500ms,fadeInOut,,60times
                break;
-      case 12: f.enable(100,3,seq+1,25);
+      case  6: f.enable(100,3,seq+1,300);
+               break;
+      case 10: f.enable(1000,1,seq+1,1);// 1s,fadeIn,,1time
+               f.setOrMask(255,0,0);    // Red on, ...
+               f.setAndMask(255,255,0); // ... fade in green
+               break;
+      case 11: f.enable(1000,1,seq+1,1);// 1s,fadeIn,,1time
+               f.setOrMask(255,255,0);  // Red and green on, fade in blue
+               break;
+      case 12: f.enable(1000,2,seq+1,1);// 1s,fadeOut,,1time
+               break;
+      case 13: f.enable(500,3,seq+1,5);
+               break;
+      case 14: f.enable(100,3,seq+1,15);
                break;
       default: alarmActive = false;
                setAllPixels(pixels.Color(0,0,0));
@@ -508,8 +531,8 @@ void loop() {
       uint8_t alarmsFired = Clock.checkAlarms();
       if (alarmsFired & 2) {
         alarmActive = true;
-        //f.enable(500,3,3,5);
-        f.enable(1200000,4,2,1); //20min,fadeInSlow,seq2,1time
+        f.enable(600000,4,2,1); //10min,fadeInSlow,seq2,1time
+        f.setAndMask(255,0,0); // Disable green and blue
       }
     }
     if (showTimeConst) {
